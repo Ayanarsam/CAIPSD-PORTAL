@@ -598,6 +598,21 @@
       margin-top: 12px;
     }
   </style>
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#0b1f47">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="CAIPSD Portal">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="icon-192.png?v=1">
+  <link rel="icon" type="image/png" href="icon-192.png?v=1">
+  <style>
+    .pwa-install { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9999; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: linear-gradient(135deg, #0b1f47, #2563eb); color: #fff; font: 700 0.88rem 'Plus Jakarta Sans', -apple-system, sans-serif; box-shadow: 0 10px 24px -8px rgba(11,31,71,.6); cursor: pointer; }
+    .pwa-install[hidden] { display: none; }
+    .pwa-install .x { margin-left: 4px; opacity: .7; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
+    .pwa-tip { position: fixed; left: 16px; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 9999; max-width: 420px; margin: 0 auto; padding: 14px 16px; border-radius: 14px; background: #0b1f47; color: #fff; font: 500 0.88rem/1.45 'Plus Jakarta Sans', -apple-system, sans-serif; box-shadow: 0 12px 30px -10px rgba(0,0,0,.5); }
+    .pwa-tip[hidden] { display: none; }
+  </style>
 </head>
 <body>
 
@@ -3130,6 +3145,32 @@ function initialSetup() {
   // Initialize on load
   routeView();
   window.loadSheetConfig();
+})();
+</script>
+<button type="button" class="pwa-install" id="pwaInstall" hidden title="Install CAIPSD Portal on this device"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Install CAIPSD Portal</span><span class="x" id="pwaClose" aria-label="Hide">&times;</span></button>
+<div class="pwa-tip" id="pwaTip" hidden></div>
+<script>
+/* "Install CAIPSD Portal": add the portal to the home screen as an app */
+(() => {
+  const btn = document.getElementById('pwaInstall'), tip = document.getElementById('pwaTip');
+  const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  let hiddenByUser = false; try { hiddenByUser = sessionStorage.getItem('pwaHide') === '1'; } catch (e) {}
+  let evt = null;
+  const show = () => { if (!installed() && !hiddenByUser) btn.hidden = false; };
+  const say = (t) => { tip.textContent = t; tip.hidden = false; clearTimeout(say.t); say.t = setTimeout(() => { tip.hidden = true; }, 8000); };
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); evt = e; show(); });
+  window.addEventListener('appinstalled', () => { evt = null; btn.hidden = true; say('CAIPSD Portal is installed. Open it from your home screen.'); });
+  if (isIOS) show();   // iPhone/iPad have no install prompt; the button shows how
+  btn.addEventListener('click', async (e) => {
+    if (e.target.id === 'pwaClose') { btn.hidden = true; hiddenByUser = true; try { sessionStorage.setItem('pwaHide', '1'); } catch (er) {} return; }
+    if (evt) { evt.prompt(); const r = await evt.userChoice.catch(() => ({})); if (r.outcome === 'accepted') btn.hidden = true; evt = null; }
+    else if (isIOS) say('To install: tap the Share button, then "Add to Home Screen".');
+    else say('To install: open the browser menu (⋮) and choose "Install app" or "Add to Home screen".');
+  });
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
+  }
 })();
 </script>
 </body>
