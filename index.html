@@ -610,6 +610,8 @@
     .pwa-install { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 9999; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.25); background: linear-gradient(135deg, #0b1f47, #2563eb); color: #fff; font: 700 0.88rem 'Plus Jakarta Sans', -apple-system, sans-serif; box-shadow: 0 10px 24px -8px rgba(11,31,71,.6); cursor: pointer; }
     .pwa-install[hidden] { display: none; }
     .pwa-install .x { margin-left: 4px; opacity: .7; font-size: 1.1rem; line-height: 1; padding: 0 2px; }
+    .pwa-download { width: 100%; margin-top: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 14px; font: 700 0.88rem 'Plus Jakarta Sans', -apple-system, sans-serif; color: #fff; background: linear-gradient(135deg, #0b1f47, #2563eb); border: none; border-radius: 8px; cursor: pointer; }
+    .pwa-download[hidden] { display: none; }
     .pwa-tip { position: fixed; left: 16px; right: 16px; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 9999; max-width: 420px; margin: 0 auto; padding: 14px 16px; border-radius: 14px; background: #0b1f47; color: #fff; font: 500 0.88rem/1.45 'Plus Jakarta Sans', -apple-system, sans-serif; box-shadow: 0 12px 30px -10px rgba(0,0,0,.5); }
     .pwa-tip[hidden] { display: none; }
   </style>
@@ -647,6 +649,7 @@
         <button type="button" onclick="toggleRegisterView(true)" style="width: 100%; padding: 10px 14px; font-size: 0.86rem; font-weight: 600; color: var(--navy); background: #f8fafc; border: 1.5px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
           📝 Register New Intern Account
         </button>
+        <button type="button" class="pwa-download" id="pwaDownload" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>Download CAIPSD Portal App</button>
       </div>
     </form>
   </div>
@@ -3147,27 +3150,37 @@ function initialSetup() {
   window.loadSheetConfig();
 })();
 </script>
-<button type="button" class="pwa-install" id="pwaInstall" hidden title="Install CAIPSD Portal on this device"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Install CAIPSD Portal</span><span class="x" id="pwaClose" aria-label="Hide">&times;</span></button>
+<button type="button" class="pwa-install" id="pwaInstall" hidden title="Install CAIPSD Portal on this device"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Download App</span><span class="x" id="pwaClose" aria-label="Hide">&times;</span></button>
 <div class="pwa-tip" id="pwaTip" hidden></div>
 <script>
-/* "Install CAIPSD Portal": add the portal to the home screen as an app */
+/* "Download CAIPSD Portal App": add the portal to the home screen as an app */
 (() => {
-  const btn = document.getElementById('pwaInstall'), tip = document.getElementById('pwaTip');
+  const btn = document.getElementById('pwaInstall'), dl = document.getElementById('pwaDownload'), tip = document.getElementById('pwaTip');
+  const signIn = document.getElementById('cardSignIn');
   const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   let hiddenByUser = false; try { hiddenByUser = sessionStorage.getItem('pwaHide') === '1'; } catch (e) {}
-  let evt = null;
-  const show = () => { if (!installed() && !hiddenByUser) btn.hidden = false; };
-  const say = (t) => { tip.textContent = t; tip.hidden = false; clearTimeout(say.t); say.t = setTimeout(() => { tip.hidden = true; }, 8000); };
-  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); evt = e; show(); });
-  window.addEventListener('appinstalled', () => { evt = null; btn.hidden = true; say('CAIPSD Portal is installed. Open it from your home screen.'); });
-  if (isIOS) show();   // iPhone/iPad have no install prompt; the button shows how
-  btn.addEventListener('click', async (e) => {
-    if (e.target.id === 'pwaClose') { btn.hidden = true; hiddenByUser = true; try { sessionStorage.setItem('pwaHide', '1'); } catch (er) {} return; }
-    if (evt) { evt.prompt(); const r = await evt.userChoice.catch(() => ({})); if (r.outcome === 'accepted') btn.hidden = true; evt = null; }
-    else if (isIOS) say('To install: tap the Share button, then "Add to Home Screen".');
-    else say('To install: open the browser menu (⋮) and choose "Install app" or "Add to Home screen".');
+  let evt = null, done = installed();
+  // the sign-in card has its own Download button; the floating one is for the other screens
+  const update = () => {
+    const onSignIn = !!(signIn && signIn.offsetParent);
+    if (dl) dl.hidden = done;
+    btn.hidden = done || hiddenByUser || onSignIn;
+  };
+  const say = (t) => { tip.textContent = t; tip.hidden = false; clearTimeout(say.t); say.t = setTimeout(() => { tip.hidden = true; }, 9000); };
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); evt = e; update(); });
+  window.addEventListener('appinstalled', () => { evt = null; done = true; update(); say('CAIPSD Portal is installed. Open it from your home screen.'); });
+  const download = async () => {
+    if (evt) { evt.prompt(); const r = await evt.userChoice.catch(() => ({})); if (r.outcome === 'accepted') { done = true; update(); } evt = null; }
+    else if (isIOS) say('To download on iPhone: tap the Share button (square with arrow) at the bottom of Safari, then tap "Add to Home Screen".');
+    else say('To download: open the browser menu (\u22ee at the top right) and tap "Install app" or "Add to Home screen".');
+  };
+  btn.addEventListener('click', (e) => {
+    if (e.target.id === 'pwaClose') { hiddenByUser = true; try { sessionStorage.setItem('pwaHide', '1'); } catch (er) {} update(); return; }
+    download();
   });
+  if (dl) dl.addEventListener('click', download);
+  update(); setInterval(update, 1000);
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
     window.addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
   }
